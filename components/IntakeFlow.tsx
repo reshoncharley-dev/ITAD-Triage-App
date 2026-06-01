@@ -48,7 +48,7 @@ export default function IntakeFlow() {
       routing,
       wholesaleReason,
       backMarketGrade,
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toLocaleString('en-US', { timeZone: 'America/Denver' }),
     };
 
     currentRecord.current = record;
