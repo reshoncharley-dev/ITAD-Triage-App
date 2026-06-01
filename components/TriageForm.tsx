@@ -47,12 +47,11 @@ const EMPTY: TriageAnswers = {
   bricked: null, diag: null, backMarket: null, rms: null, battery: null,
 };
 
-// Flow: Bricked → Diag → (RMS + Back Market together) → Battery
-// RMS Quarantine only applies when Back Market = Yes
+// Flow: Bricked → (Diag + RMS + Back Market together) → Battery
+// RMS Quarantine only applies when Diag=Yes and Back Market=Yes
 function resolveRouting(a: TriageAnswers): string | null {
   if (a.bricked === true) return 'Wholesale';
   if (a.bricked === false && a.diag === false) return 'Wholesale';
-  // Both RMS and BM shown together — need both to resolve
   if (a.bricked === false && a.diag === true && a.backMarket === false) return 'Wholesale';
   if (a.bricked === false && a.diag === true && a.backMarket === true && a.rms === false) return 'RMS Quarantine';
   if (a.bricked === false && a.diag === true && a.backMarket === true && a.rms === true && a.battery === false) return 'Battery Replacement';
@@ -103,10 +102,9 @@ export default function TriageForm({ uuid, serial, onSubmit }: Props) {
     return (v: boolean) =>
       setAnswers((prev) => {
         const next: TriageAnswers = { ...prev, [field]: v };
-        if (field === 'bricked')         { next.diag = null; next.rms = null; next.backMarket = null; next.battery = null; }
-        else if (field === 'diag')       { next.rms = null; next.backMarket = null; next.battery = null; }
-        else if (field === 'rms')        { next.battery = null; } // peer with backMarket, only resets battery
-        else if (field === 'backMarket') { next.battery = null; } // peer with rms, only resets battery
+        // diag/rms/backMarket are peers — changing any resets only battery
+        if (field === 'bricked') { next.diag = null; next.rms = null; next.backMarket = null; next.battery = null; }
+        else { next.battery = null; }
         return next;
       });
   }
@@ -120,10 +118,8 @@ export default function TriageForm({ uuid, serial, onSubmit }: Props) {
     (!needsGrade  || grade !== null);
 
   // Progressive visibility
-  const showDiag     = answers.bricked === false;
-  const showBMandRMS = showDiag && answers.diag === true;
-  // Battery only shows when both BackMarket=Yes AND RMS=Yes
-  const showBattery  = showBMandRMS && answers.backMarket === true && answers.rms === true;
+  const showGroup  = answers.bricked === false; // Diag + RMS + BM all appear together
+  const showBattery = showGroup && answers.diag === true && answers.backMarket === true && answers.rms === true;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -155,14 +151,10 @@ export default function TriageForm({ uuid, serial, onSubmit }: Props) {
         <div className="py-3">
           <AnswerRow label="Is the device bricked?" value={answers.bricked} onChange={answer('bricked')} />
         </div>
-        {showDiag && (
-          <div className="py-3">
-            <AnswerRow label="Did it pass diagnostics?" value={answers.diag} onChange={answer('diag')} />
-          </div>
-        )}
-        {/* RMS + Back Market appear together after Diag=Yes (RMS on top) */}
-        {showBMandRMS && (
+        {/* Diag + RMS + Back Market all appear together after Bricked=No */}
+        {showGroup && (
           <div className="py-3 flex flex-col gap-3">
+            <AnswerRow label="Did it pass diagnostics?" value={answers.diag} onChange={answer('diag')} />
             <AnswerRow label="Did it pass RMS check?" value={answers.rms} onChange={answer('rms')} />
             <AnswerRow label="Is it Back Market resalable?" value={answers.backMarket} onChange={answer('backMarket')} />
           </div>
