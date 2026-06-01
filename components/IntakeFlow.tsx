@@ -29,8 +29,9 @@ const EMPTY_STATE: IntakeState = {
 };
 
 function resolveRouting(state: IntakeState): RoutingDestination {
-  if (state.bricked || !state.diag || !state.backMarket) return 'Wholesale';
+  if (state.bricked) return 'Wholesale';
   if (!state.rms) return 'RMS Quarantine';
+  if (!state.diag || !state.backMarket) return 'Wholesale';
   if (!state.battery) return 'Battery Replacement';
   return 'Internal Resale';
 }
@@ -54,7 +55,7 @@ const STEP_LABELS: Record<IntakeStep, string> = {
   result: 'Result',
 };
 
-const PROGRESS_STEPS: IntakeStep[] = ['entry', 'bricked', 'diag', 'backmarket', 'rms', 'battery'];
+const PROGRESS_STEPS: IntakeStep[] = ['entry', 'bricked', 'rms', 'diag', 'backmarket', 'battery'];
 
 export default function IntakeFlow() {
   const [step, setStep] = useState<IntakeStep>('entry');
@@ -74,7 +75,13 @@ export default function IntakeFlow() {
     const next = { ...intake, bricked: answer };
     setIntake(next);
     if (answer) { setPendingState(next); setStep('wholesale-reason'); }
-    else setStep('diag');
+    else setStep('rms');
+  }, [intake]);
+
+  const handleRms = useCallback((answer: boolean) => {
+    const next = { ...intake, rms: answer };
+    setIntake(next);
+    if (!answer) finalize(next); else setStep('diag');
   }, [intake]);
 
   const handleDiag = useCallback((answer: boolean) => {
@@ -88,13 +95,7 @@ export default function IntakeFlow() {
     const next = { ...intake, backMarket: answer };
     setIntake(next);
     if (!answer) { setPendingState(next); setStep('wholesale-reason'); }
-    else setStep('rms');
-  }, [intake]);
-
-  const handleRms = useCallback((answer: boolean) => {
-    const next = { ...intake, rms: answer };
-    setIntake(next);
-    if (!answer) finalize(next); else setStep('battery');
+    else setStep('battery');
   }, [intake]);
 
   const handleBattery = useCallback((answer: boolean) => {
@@ -175,12 +176,12 @@ export default function IntakeFlow() {
         </div>
 
         <div className="p-5">
-          {step === 'entry'     && <EntryStep onSubmit={handleEntry} />}
-          {step === 'bricked'   && <QuestionStep question={QUESTIONS.bricked}    onAnswer={handleBricked} />}
-          {step === 'diag'      && <QuestionStep question={QUESTIONS.diag}       onAnswer={handleDiag} />}
-          {step === 'backmarket'&& <QuestionStep question={QUESTIONS.backmarket}  onAnswer={handleBackMarket} />}
-          {step === 'rms'       && <QuestionStep question={QUESTIONS.rms}        onAnswer={handleRms} />}
-          {step === 'battery'   && <QuestionStep question={QUESTIONS.battery}    onAnswer={handleBattery} />}
+          {step === 'entry'      && <EntryStep onSubmit={handleEntry} />}
+          {step === 'bricked'    && <QuestionStep question={QUESTIONS.bricked}     onAnswer={handleBricked} />}
+          {step === 'rms'        && <QuestionStep question={QUESTIONS.rms}         onAnswer={handleRms} />}
+          {step === 'diag'       && <QuestionStep question={QUESTIONS.diag}        onAnswer={handleDiag} />}
+          {step === 'backmarket' && <QuestionStep question={QUESTIONS.backmarket}   onAnswer={handleBackMarket} />}
+          {step === 'battery'    && <QuestionStep question={QUESTIONS.battery}     onAnswer={handleBattery} />}
           {step === 'wholesale-reason' && <WholesaleReasonStep onSubmit={handleWholesaleReason} />}
           {step === 'result' && currentRecord.current && (
             <ResultCard
