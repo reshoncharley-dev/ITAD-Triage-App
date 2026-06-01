@@ -32,6 +32,24 @@ function resolveRouting(state: IntakeState): RoutingDestination {
   return 'Internal Resale';
 }
 
+const QUESTIONS: Record<string, string> = {
+  diag: 'Did it pass diagnostics?',
+  backmarket: 'Is it Back Market resalable?',
+  rms: 'Did it pass RMS check?',
+  battery: 'Is the battery good?',
+};
+
+const STEP_LABELS: Record<IntakeStep, string> = {
+  entry: 'Device Entry',
+  diag: 'Diagnostics',
+  backmarket: 'Back Market',
+  rms: 'RMS Check',
+  battery: 'Battery',
+  result: 'Result',
+};
+
+const STEPS: IntakeStep[] = ['entry', 'diag', 'backmarket', 'rms', 'battery', 'result'];
+
 export default function IntakeFlow() {
   const [step, setStep] = useState<IntakeStep>('entry');
   const [intake, setIntake] = useState<IntakeState>(EMPTY_STATE);
@@ -46,30 +64,21 @@ export default function IntakeFlow() {
   }, []);
 
   const handleDiag = useCallback((answer: boolean) => {
-    setIntake((prev) => ({ ...prev, diag: answer }));
-    if (!answer) {
-      finalize({ ...intake, diag: answer });
-    } else {
-      setStep('backmarket');
-    }
+    const next = { ...intake, diag: answer };
+    setIntake(next);
+    if (!answer) finalize(next); else setStep('backmarket');
   }, [intake]);
 
   const handleBackMarket = useCallback((answer: boolean) => {
-    setIntake((prev) => ({ ...prev, backMarket: answer }));
-    if (!answer) {
-      finalize({ ...intake, backMarket: answer });
-    } else {
-      setStep('rms');
-    }
+    const next = { ...intake, backMarket: answer };
+    setIntake(next);
+    if (!answer) finalize(next); else setStep('rms');
   }, [intake]);
 
   const handleRms = useCallback((answer: boolean) => {
-    setIntake((prev) => ({ ...prev, rms: answer }));
-    if (!answer) {
-      finalize({ ...intake, rms: answer });
-    } else {
-      setStep('battery');
-    }
+    const next = { ...intake, rms: answer };
+    setIntake(next);
+    if (!answer) finalize(next); else setStep('battery');
   }, [intake]);
 
   const handleBattery = useCallback((answer: boolean) => {
@@ -103,9 +112,7 @@ export default function IntakeFlow() {
       body: JSON.stringify(record),
     })
       .then((res) => res.json())
-      .then((data) => {
-        if (!data.ok) setSyncError(data.error ?? 'Unknown error');
-      })
+      .then((data) => { if (!data.ok) setSyncError(data.error ?? 'Unknown error'); })
       .catch((err) => setSyncError(String(err)))
       .finally(() => setSyncing(false));
   }
@@ -117,60 +124,55 @@ export default function IntakeFlow() {
     setStep('entry');
   }
 
-  const STEP_LABELS: Record<IntakeStep, string> = {
-    entry: 'Device Entry',
-    diag: 'Diagnostics',
-    backmarket: 'Back Market',
-    rms: 'RMS Check',
-    battery: 'Battery',
-    result: 'Result',
-  };
-
-  const STEPS: IntakeStep[] = ['entry', 'diag', 'backmarket', 'rms', 'battery', 'result'];
   const currentIndex = STEPS.indexOf(step);
+  const progressSteps = STEPS.slice(0, -1); // exclude 'result' from bar
 
   return (
-    <div className="mx-auto max-w-lg px-4 py-10">
-      <h1 className="mb-2 text-3xl font-black text-gray-900">Device Intake</h1>
+    <div className="mx-auto max-w-lg px-4 py-6">
+      {/* Card */}
+      <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-md overflow-hidden">
+        {/* Top accent */}
+        <div className="h-1 bg-gradient-to-r from-[#f2555a] via-[#f2555a]/70 to-[#f2555a]/20" />
 
-      <div className="mb-8 flex gap-1">
-        {STEPS.slice(0, -1).map((s, i) => (
-          <div
-            key={s}
-            className={`h-1 flex-1 rounded-full transition-colors ${
-              i < currentIndex ? 'bg-blue-600' : i === currentIndex ? 'bg-blue-300' : 'bg-gray-200'
-            }`}
-          />
-        ))}
+        {/* Card header */}
+        <div className="px-5 py-3.5 border-b border-[var(--border)] bg-gradient-to-r from-[var(--background)] to-white flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">
+            {STEP_LABELS[step]}
+          </p>
+          {/* Progress dots */}
+          <div className="flex items-center gap-1.5">
+            {progressSteps.map((s, i) => (
+              <div
+                key={s}
+                className={`h-1.5 rounded-full transition-all ${
+                  i < currentIndex
+                    ? 'w-4 bg-[var(--primary)]'
+                    : i === currentIndex
+                    ? 'w-4 bg-[var(--primary)]/40'
+                    : 'w-1.5 bg-[var(--border-strong)]'
+                }`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Card body */}
+        <div className="p-5">
+          {step === 'entry' && <EntryStep onSubmit={handleEntry} />}
+          {step === 'diag' && <QuestionStep question={QUESTIONS.diag} onAnswer={handleDiag} />}
+          {step === 'backmarket' && <QuestionStep question={QUESTIONS.backmarket} onAnswer={handleBackMarket} />}
+          {step === 'rms' && <QuestionStep question={QUESTIONS.rms} onAnswer={handleRms} />}
+          {step === 'battery' && <QuestionStep question={QUESTIONS.battery} onAnswer={handleBattery} />}
+          {step === 'result' && currentRecord.current && (
+            <ResultCard
+              record={currentRecord.current}
+              syncing={syncing}
+              syncError={syncError}
+              onNext={handleNext}
+            />
+          )}
+        </div>
       </div>
-
-      <p className="mb-6 text-xs font-semibold uppercase tracking-widest text-gray-400">
-        {STEP_LABELS[step]}
-      </p>
-
-      {step === 'entry' && <EntryStep onSubmit={handleEntry} />}
-
-      {step === 'diag' && (
-        <QuestionStep question="Did it pass diagnostics?" onAnswer={handleDiag} />
-      )}
-      {step === 'backmarket' && (
-        <QuestionStep question="Is it Back Market resalable?" onAnswer={handleBackMarket} />
-      )}
-      {step === 'rms' && (
-        <QuestionStep question="Did it pass RMS check?" onAnswer={handleRms} />
-      )}
-      {step === 'battery' && (
-        <QuestionStep question="Is the battery good?" onAnswer={handleBattery} />
-      )}
-
-      {step === 'result' && currentRecord.current && (
-        <ResultCard
-          record={currentRecord.current}
-          syncing={syncing}
-          syncError={syncError}
-          onNext={handleNext}
-        />
-      )}
 
       <SessionLog records={sessionLog} />
     </div>

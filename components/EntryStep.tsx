@@ -19,9 +19,9 @@ export default function EntryStep({ onSubmit }: Props) {
   }
 
   function handleSerialKey(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'Enter' && serial.trim()) {
+    if (e.key === 'Enter' && serial.trim() && uuid.trim()) {
       e.preventDefault();
-      if (uuid.trim()) onSubmit(uuid.trim(), serial.trim());
+      onSubmit(uuid.trim(), serial.trim());
     }
   }
 
@@ -30,10 +30,13 @@ export default function EntryStep({ onSubmit }: Props) {
     if (uuid.trim() && serial.trim()) onSubmit(uuid.trim(), serial.trim());
   }
 
+  const inputClass =
+    'w-full px-4 py-3 text-sm font-mono tracking-wider bg-[var(--background)] border border-[var(--border)] rounded-xl placeholder-[var(--muted-light)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)]/30 focus:border-[var(--primary)] transition-all';
+
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">
           UUID
         </label>
         <input
@@ -43,12 +46,12 @@ export default function EntryStep({ onSubmit }: Props) {
           onChange={(e) => setUuid(e.target.value)}
           onKeyDown={handleUuidKey}
           placeholder="Scan or type UUID…"
-          className="w-full rounded-xl border-2 border-gray-200 bg-white px-5 py-4 text-xl font-mono text-gray-900 placeholder-gray-300 focus:border-blue-500 focus:outline-none"
+          className={inputClass}
         />
       </div>
 
-      <div className="flex flex-col gap-2">
-        <label className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">
           Serial Number
         </label>
         <input
@@ -58,14 +61,14 @@ export default function EntryStep({ onSubmit }: Props) {
           onChange={(e) => setSerial(e.target.value)}
           onKeyDown={handleSerialKey}
           placeholder="Scan or type serial…"
-          className="w-full rounded-xl border-2 border-gray-200 bg-white px-5 py-4 text-xl font-mono text-gray-900 placeholder-gray-300 focus:border-blue-500 focus:outline-none"
+          className={inputClass}
         />
       </div>
 
       <button
         type="submit"
         disabled={!uuid.trim() || !serial.trim()}
-        className="mt-2 w-full rounded-xl bg-blue-600 py-5 text-xl font-bold text-white transition hover:bg-blue-700 disabled:opacity-40"
+        className="mt-1 w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r from-[#f2555a] to-[#e04449] hover:from-[#e04449] hover:to-[#cc3c42] transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
       >
         Start Intake
       </button>
