@@ -14,6 +14,8 @@ export type IntakeStep =
   | 'wholesale-reason'
   | 'result';
 
+export type BackMarketGrade = 'Mint' | 'Very Good' | 'Good' | 'Fair' | 'Stallone';
+
 export interface DeviceRecord {
   uuid: string;
   serial: string;
@@ -24,5 +26,6 @@ export interface DeviceRecord {
   battery: boolean | null;
   routing: RoutingDestination;
   wholesaleReason?: string;
+  backMarketGrade?: BackMarketGrade;
   timestamp: string;
 }

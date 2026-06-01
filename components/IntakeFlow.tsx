@@ -5,13 +5,13 @@ import EntryStep from './EntryStep';
 import TriageForm, { type TriageAnswers } from './TriageForm';
 import ResultCard from './ResultCard';
 import SessionLog from './SessionLog';
-import type { DeviceRecord, RoutingDestination } from '@/types';
+import type { BackMarketGrade, DeviceRecord, RoutingDestination } from '@/types';
 
 type Step = 'entry' | 'triage' | 'result';
 
 function resolveRouting(a: TriageAnswers): RoutingDestination {
   if (a.bricked || !a.diag || !a.backMarket) return 'Wholesale';
-  if (!a.rms) return 'RMS Quarantine';
+  if (!a.rms) return 'RMS Quarantine'; // only reached when backMarket=Yes
   if (!a.battery) return 'Battery Replacement';
   return 'Internal Resale';
 }
@@ -35,7 +35,7 @@ export default function IntakeFlow() {
     setStep('triage');
   }
 
-  function handleTriage(answers: TriageAnswers, wholesaleReason?: string) {
+  function handleTriage(answers: TriageAnswers, wholesaleReason?: string, backMarketGrade?: BackMarketGrade) {
     const routing = resolveRouting(answers);
     const record: DeviceRecord = {
       uuid: device.uuid,
@@ -47,6 +47,7 @@ export default function IntakeFlow() {
       battery: answers.battery,
       routing,
       wholesaleReason,
+      backMarketGrade,
       timestamp: new Date().toISOString(),
     };
 
