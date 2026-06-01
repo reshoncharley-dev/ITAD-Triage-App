@@ -1,7 +1,7 @@
 import { google, sheets_v4 } from 'googleapis';
 import type { DeviceRecord } from '@/types';
 
-const HEADERS = ['Timestamp', 'UUID', 'Serial', 'Diag', 'Back Market', 'RMS', 'Battery', 'Routing', 'Wholesale Reason'];
+const HEADERS = ['Timestamp', 'UUID', 'Serial', 'Bricked', 'Diag', 'Back Market', 'RMS', 'Battery', 'Routing', 'Wholesale Reason'];
 
 function getAuth() {
   return new google.auth.GoogleAuth({
@@ -48,6 +48,7 @@ export async function appendDeviceRecord(record: DeviceRecord): Promise<void> {
     record.timestamp,
     record.uuid,
     record.serial,
+    record.bricked === null ? '' : record.bricked ? 'Yes' : 'No',
     record.diag === null ? '' : record.diag ? 'Yes' : 'No',
     record.backMarket === null ? '' : record.backMarket ? 'Yes' : 'No',
     record.rms === null ? '' : record.rms ? 'Yes' : 'No',
@@ -66,13 +67,13 @@ export async function appendDeviceRecord(record: DeviceRecord): Promise<void> {
   await Promise.all([
     api.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Intake!A:I',
+      range: 'Intake!A:J',
       valueInputOption: 'RAW',
       requestBody: { values: [row] },
     }),
     api.spreadsheets.values.append({
       spreadsheetId,
-      range: `${record.routing}!A:I`,
+      range: `${record.routing}!A:J`,
       valueInputOption: 'RAW',
       requestBody: { values: [row] },
     }),

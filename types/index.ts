@@ -6,6 +6,7 @@ export type RoutingDestination =
 
 export type IntakeStep =
   | 'entry'
+  | 'bricked'
   | 'diag'
   | 'backmarket'
   | 'rms'
@@ -16,6 +17,7 @@ export type IntakeStep =
 export interface DeviceRecord {
   uuid: string;
   serial: string;
+  bricked: boolean | null;
   diag: boolean | null;
   backMarket: boolean | null;
   rms: boolean | null;
