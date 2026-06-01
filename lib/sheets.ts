@@ -5,7 +5,9 @@ export async function appendDeviceRecord(record: DeviceRecord): Promise<void> {
   const auth = new google.auth.GoogleAuth({
     credentials: {
       client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      private_key: process.env.GOOGLE_PRIVATE_KEY
+        ?.replace(/^"|"$/g, '')   // strip accidental surrounding quotes
+        ?.replace(/\\n/g, '\n'),  // literal \n → actual newlines
     },
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
