@@ -1,8 +1,14 @@
 import { google, sheets_v4 } from 'googleapis';
-import type { DeviceRecord } from '@/types';
+import type { DeviceRecord, RoutingDestination } from '@/types';
 
 const HEADERS = ['Timestamp', 'UUID', 'Serial', 'Bricked', 'Diag', 'Back Market', 'RMS', 'Battery', 'Routing', 'Wholesale Reason'];
 const UUID_COL = 1; // column B, 0-indexed
+const ALL_ROUTING_SHEETS: RoutingDestination[] = [
+  'Wholesale',
+  'RMS Quarantine',
+  'Battery Replacement',
+  'Internal Resale',
+];
 
 function getAuth() {
   return new google.auth.GoogleAuth({
@@ -38,7 +44,7 @@ async function ensureSheet(
     return;
   }
 
-  // Sheet exists — verify row 1 is exactly our header
+  // Sheet exists — fix headers if wrong
   const { data: rowData } = await api.spreadsheets.values.get({
     spreadsheetId,
     range: `${sheetName}!A1:J1`,
@@ -47,7 +53,6 @@ async function ensureSheet(
   const headersOk = HEADERS.every((h, i) => row1[i] === h);
 
   if (!headersOk) {
-    // Clear the entire first row then write correct headers
     await api.spreadsheets.values.clear({ spreadsheetId, range: `${sheetName}!1:1` });
     await api.spreadsheets.values.update({
       spreadsheetId,
@@ -58,6 +63,7 @@ async function ensureSheet(
   }
 }
 
+// Returns 1-based row number if UUID found in column B, else null
 async function findUUIDRow(
   api: sheets_v4.Sheets,
   spreadsheetId: string,
@@ -66,35 +72,80 @@ async function findUUIDRow(
 ): Promise<number | null> {
   const { data } = await api.spreadsheets.values.get({
     spreadsheetId,
-    range: `${sheetName}!B:B`, // scan UUID column only
+    range: `${sheetName}!B:B`,
   });
   const col = data.values ?? [];
-  for (let i = 1; i < col.length; i++) { // row 0 is header
-    if (col[i]?.[0] === uuid) return i + 1; // 1-based row number
+  for (let i = 1; i < col.length; i++) {
+    if (col[i]?.[0] === uuid) return i + 1;
   }
   return null;
 }
 
-async function upsertRow(
+// Scans all routing sheets to find which one currently holds this UUID
+async function findCurrentRoutingSheet(
   api: sheets_v4.Sheets,
   spreadsheetId: string,
-  sheetName: string,
+  uuid: string
+): Promise<{ sheetName: RoutingDestination; rowNumber: number; sheetId: number } | null> {
+  const { data } = await api.spreadsheets.get({ spreadsheetId });
+
+  for (const sheetName of ALL_ROUTING_SHEETS) {
+    const sheet = data.sheets?.find((s) => s.properties?.title === sheetName);
+    if (!sheet) continue;
+
+    const rowNumber = await findUUIDRow(api, spreadsheetId, sheetName, uuid);
+    if (rowNumber !== null) {
+      return {
+        sheetName,
+        rowNumber,
+        sheetId: sheet.properties?.sheetId ?? 0,
+      };
+    }
+  }
+  return null;
+}
+
+async function deleteRow(
+  api: sheets_v4.Sheets,
+  spreadsheetId: string,
+  sheetId: number,
+  rowNumber: number // 1-based
+): Promise<void> {
+  await api.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [{
+        deleteDimension: {
+          range: {
+            sheetId,
+            dimension: 'ROWS',
+            startIndex: rowNumber - 1, // 0-based inclusive
+            endIndex: rowNumber,       // 0-based exclusive
+          },
+        },
+      }],
+    },
+  });
+}
+
+async function upsertIntake(
+  api: sheets_v4.Sheets,
+  spreadsheetId: string,
   uuid: string,
   row: string[]
 ): Promise<void> {
-  const existingRow = await findUUIDRow(api, spreadsheetId, sheetName, uuid);
-
+  const existingRow = await findUUIDRow(api, spreadsheetId, 'Intake', uuid);
   if (existingRow !== null) {
     await api.spreadsheets.values.update({
       spreadsheetId,
-      range: `${sheetName}!A${existingRow}:J${existingRow}`,
+      range: `Intake!A${existingRow}:J${existingRow}`,
       valueInputOption: 'RAW',
       requestBody: { values: [row] },
     });
   } else {
     await api.spreadsheets.values.append({
       spreadsheetId,
-      range: `${sheetName}!A:J`,
+      range: 'Intake!A:J',
       valueInputOption: 'RAW',
       requestBody: { values: [row] },
     });
@@ -119,9 +170,40 @@ export async function appendDeviceRecord(record: DeviceRecord): Promise<void> {
     record.wholesaleReason ?? '',
   ];
 
-  // Sequential — avoid any race conditions between sheet operations
+  // Ensure target sheets exist with correct headers
   await ensureSheet(api, spreadsheetId, 'Intake');
   await ensureSheet(api, spreadsheetId, record.routing);
-  await upsertRow(api, spreadsheetId, 'Intake', record.uuid, row);
-  await upsertRow(api, spreadsheetId, record.routing, record.uuid, row);
+
+  // Find where this UUID currently lives in routing sheets
+  const current = await findCurrentRoutingSheet(api, spreadsheetId, record.uuid);
+
+  // Always upsert Intake (master log)
+  await upsertIntake(api, spreadsheetId, record.uuid, row);
+
+  if (current === null) {
+    // New device — append to routing sheet
+    await api.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${record.routing}!A:J`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [row] },
+    });
+  } else if (current.sheetName === record.routing) {
+    // Same routing — update in place
+    await api.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${record.routing}!A${current.rowNumber}:J${current.rowNumber}`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [row] },
+    });
+  } else {
+    // Routing changed — delete from old sheet, append to new sheet
+    await deleteRow(api, spreadsheetId, current.sheetId, current.rowNumber);
+    await api.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${record.routing}!A:J`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [row] },
+    });
+  }
 }
