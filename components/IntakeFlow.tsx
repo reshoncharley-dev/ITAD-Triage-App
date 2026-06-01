@@ -1,122 +1,50 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import EntryStep from './EntryStep';
-import QuestionStep from './QuestionStep';
-import WholesaleReasonStep from './WholesaleReasonStep';
+import TriageForm, { type TriageAnswers } from './TriageForm';
 import ResultCard from './ResultCard';
 import SessionLog from './SessionLog';
-import type { DeviceRecord, IntakeStep, RoutingDestination } from '@/types';
+import type { DeviceRecord, RoutingDestination } from '@/types';
 
-interface IntakeState {
-  uuid: string;
-  serial: string;
-  bricked: boolean | null;
-  diag: boolean | null;
-  backMarket: boolean | null;
-  rms: boolean | null;
-  battery: boolean | null;
-}
+type Step = 'entry' | 'triage' | 'result';
 
-const EMPTY_STATE: IntakeState = {
-  uuid: '',
-  serial: '',
-  bricked: null,
-  diag: null,
-  backMarket: null,
-  rms: null,
-  battery: null,
-};
-
-function resolveRouting(state: IntakeState): RoutingDestination {
-  if (state.bricked || !state.diag || !state.backMarket) return 'Wholesale';
-  if (!state.rms) return 'RMS Quarantine'; // only reachable when backMarket=Yes
-  if (!state.battery) return 'Battery Replacement';
+function resolveRouting(a: TriageAnswers): RoutingDestination {
+  if (a.bricked || !a.diag || !a.backMarket) return 'Wholesale';
+  if (!a.rms) return 'RMS Quarantine';
+  if (!a.battery) return 'Battery Replacement';
   return 'Internal Resale';
 }
 
-const QUESTIONS: Record<string, string> = {
-  bricked: 'Is the device bricked?',
-  diag: 'Did it pass diagnostics?',
-  backmarket: 'Is it Back Market resalable?',
-  rms: 'Did it pass RMS check?',
-  battery: 'Is the battery good?',
-};
-
-const STEP_LABELS: Record<IntakeStep, string> = {
+const STEP_LABELS: Record<Step, string> = {
   entry: 'Device Entry',
-  bricked: 'Bricked Check',
-  diag: 'Diagnostics',
-  backmarket: 'Back Market',
-  rms: 'RMS Check',
-  battery: 'Battery',
-  'wholesale-reason': 'Wholesale Reason',
+  triage: 'Triage',
   result: 'Result',
 };
 
-const PROGRESS_STEPS: IntakeStep[] = ['entry', 'bricked', 'diag', 'backmarket', 'rms', 'battery'];
-
 export default function IntakeFlow() {
-  const [step, setStep] = useState<IntakeStep>('entry');
-  const [intake, setIntake] = useState<IntakeState>(EMPTY_STATE);
-  const [pendingState, setPendingState] = useState<IntakeState | null>(null);
+  const [step, setStep] = useState<Step>('entry');
+  const [device, setDevice] = useState({ uuid: '', serial: '' });
   const [sessionLog, setSessionLog] = useState<DeviceRecord[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const currentRecord = useRef<DeviceRecord | null>(null);
 
-  const handleEntry = useCallback((uuid: string, serial: string) => {
-    setIntake({ ...EMPTY_STATE, uuid, serial });
-    setStep('bricked');
-  }, []);
+  function handleEntry(uuid: string, serial: string) {
+    setDevice({ uuid, serial });
+    setStep('triage');
+  }
 
-  const handleBricked = useCallback((answer: boolean) => {
-    const next = { ...intake, bricked: answer };
-    setIntake(next);
-    if (answer) { setPendingState(next); setStep('wholesale-reason'); }
-    else setStep('diag');
-  }, [intake]);
-
-  const handleDiag = useCallback((answer: boolean) => {
-    const next = { ...intake, diag: answer };
-    setIntake(next);
-    if (!answer) { setPendingState(next); setStep('wholesale-reason'); }
-    else setStep('backmarket');
-  }, [intake]);
-
-  const handleBackMarket = useCallback((answer: boolean) => {
-    const next = { ...intake, backMarket: answer };
-    setIntake(next);
-    if (!answer) { setPendingState(next); setStep('wholesale-reason'); }
-    else setStep('rms'); // only ask RMS when Back Market = Yes
-  }, [intake]);
-
-  const handleRms = useCallback((answer: boolean) => {
-    const next = { ...intake, rms: answer };
-    setIntake(next);
-    if (!answer) finalize(next); else setStep('battery');
-  }, [intake]);
-
-  const handleBattery = useCallback((answer: boolean) => {
-    const next = { ...intake, battery: answer };
-    setIntake(next);
-    finalize(next);
-  }, [intake]);
-
-  const handleWholesaleReason = useCallback((reason: string) => {
-    if (pendingState) finalize(pendingState, reason);
-  }, [pendingState]);
-
-  function finalize(state: IntakeState, wholesaleReason?: string) {
-    const routing = resolveRouting(state);
+  function handleTriage(answers: TriageAnswers, wholesaleReason?: string) {
+    const routing = resolveRouting(answers);
     const record: DeviceRecord = {
-      uuid: state.uuid,
-      serial: state.serial,
-      bricked: state.bricked,
-      diag: state.diag,
-      backMarket: state.backMarket,
-      rms: state.rms,
-      battery: state.battery,
+      uuid: device.uuid,
+      serial: device.serial,
+      bricked: answers.bricked,
+      diag: answers.diag,
+      backMarket: answers.backMarket,
+      rms: answers.rms,
+      battery: answers.battery,
       routing,
       wholesaleReason,
       timestamp: new Date().toISOString(),
@@ -140,14 +68,13 @@ export default function IntakeFlow() {
   }
 
   function handleNext() {
-    setIntake(EMPTY_STATE);
-    setPendingState(null);
     currentRecord.current = null;
     setSyncError(null);
     setStep('entry');
   }
 
-  const currentIndex = PROGRESS_STEPS.indexOf(step as IntakeStep);
+  const STEPS: Step[] = ['entry', 'triage', 'result'];
+  const currentIndex = STEPS.indexOf(step);
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6">
@@ -159,7 +86,7 @@ export default function IntakeFlow() {
             {STEP_LABELS[step]}
           </p>
           <div className="flex items-center gap-1.5">
-            {PROGRESS_STEPS.map((s, i) => (
+            {STEPS.slice(0, -1).map((s, i) => (
               <div
                 key={s}
                 className={`h-1.5 rounded-full transition-all ${
@@ -175,13 +102,14 @@ export default function IntakeFlow() {
         </div>
 
         <div className="p-5">
-          {step === 'entry'      && <EntryStep onSubmit={handleEntry} />}
-          {step === 'bricked'    && <QuestionStep question={QUESTIONS.bricked}    onAnswer={handleBricked} />}
-          {step === 'diag'       && <QuestionStep question={QUESTIONS.diag}       onAnswer={handleDiag} />}
-          {step === 'backmarket' && <QuestionStep question={QUESTIONS.backmarket}  onAnswer={handleBackMarket} />}
-          {step === 'rms'        && <QuestionStep question={QUESTIONS.rms}        onAnswer={handleRms} />}
-          {step === 'battery'    && <QuestionStep question={QUESTIONS.battery}    onAnswer={handleBattery} />}
-          {step === 'wholesale-reason' && <WholesaleReasonStep onSubmit={handleWholesaleReason} />}
+          {step === 'entry' && <EntryStep onSubmit={handleEntry} />}
+          {step === 'triage' && (
+            <TriageForm
+              uuid={device.uuid}
+              serial={device.serial}
+              onSubmit={handleTriage}
+            />
+          )}
           {step === 'result' && currentRecord.current && (
             <ResultCard
               record={currentRecord.current}
