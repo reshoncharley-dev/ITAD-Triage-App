@@ -10,6 +10,44 @@ export interface TriageAnswers {
   battery: boolean | null;
 }
 
+const ROUTING_PREVIEW: Record<string, { bg: string; border: string; text: string; label: string }> = {
+  Wholesale: {
+    bg: 'bg-[var(--danger-light)]',
+    border: 'border-[var(--danger)]/20',
+    text: 'text-[var(--danger)]',
+    label: 'WHOLESALE',
+  },
+  'RMS Quarantine': {
+    bg: 'bg-[var(--warning-light)]',
+    border: 'border-[var(--warning)]/20',
+    text: 'text-[var(--warning)]',
+    label: 'RMS QUARANTINE',
+  },
+  'Battery Replacement': {
+    bg: 'bg-amber-50',
+    border: 'border-amber-200/60',
+    text: 'text-amber-600',
+    label: 'BATTERY REPLACEMENT',
+  },
+  'Internal Resale': {
+    bg: 'bg-[var(--success-light)]',
+    border: 'border-[var(--success)]/20',
+    text: 'text-[var(--success)]',
+    label: 'INTERNAL RESALE',
+  },
+};
+
+function RoutingPreview({ routing }: { routing: string }) {
+  const cfg = ROUTING_PREVIEW[routing];
+  if (!cfg) return null;
+  return (
+    <div className={`flex items-center justify-between px-4 py-3 rounded-xl border animate-scale-in ${cfg.bg} ${cfg.border}`}>
+      <span className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">Routing to</span>
+      <span className={`text-sm font-black tracking-tight ${cfg.text}`}>{cfg.label}</span>
+    </div>
+  );
+}
+
 const EMPTY: TriageAnswers = {
   bricked: null,
   diag: null,
@@ -151,6 +189,11 @@ export default function TriageForm({ uuid, serial, onSubmit }: Props) {
           </div>
         )}
       </div>
+
+      {/* Routing preview */}
+      {routing && (
+        <RoutingPreview routing={routing} />
+      )}
 
       {/* Wholesale reason */}
       {needsReason && (
