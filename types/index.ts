@@ -10,6 +10,7 @@ export type IntakeStep =
   | 'backmarket'
   | 'rms'
   | 'battery'
+  | 'wholesale-reason'
   | 'result';
 
 export interface DeviceRecord {
@@ -20,5 +21,6 @@ export interface DeviceRecord {
   rms: boolean | null;
   battery: boolean | null;
   routing: RoutingDestination;
+  wholesaleReason?: string;
   timestamp: string;
 }

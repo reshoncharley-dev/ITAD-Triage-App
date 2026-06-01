@@ -57,6 +57,12 @@ export default function ResultCard({ record, syncing, syncError, onNext }: Props
             <span className="font-mono tracking-wider text-[var(--foreground)] break-all">{record.uuid}</span>
             <span className="font-semibold text-[var(--muted)]">Serial</span>
             <span className="font-mono tracking-wider text-[var(--foreground)]">{record.serial}</span>
+            {record.wholesaleReason && (
+              <>
+                <span className="font-semibold text-[var(--muted)]">Reason</span>
+                <span className="text-[var(--foreground)]">{record.wholesaleReason}</span>
+              </>
+            )}
           </div>
         </div>
       </div>

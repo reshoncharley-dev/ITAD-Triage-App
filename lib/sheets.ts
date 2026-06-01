@@ -1,7 +1,7 @@
 import { google, sheets_v4 } from 'googleapis';
 import type { DeviceRecord } from '@/types';
 
-const HEADERS = ['Timestamp', 'UUID', 'Serial', 'Diag', 'Back Market', 'RMS', 'Battery', 'Routing'];
+const HEADERS = ['Timestamp', 'UUID', 'Serial', 'Diag', 'Back Market', 'RMS', 'Battery', 'Routing', 'Wholesale Reason'];
 
 function getAuth() {
   return new google.auth.GoogleAuth({
@@ -53,6 +53,7 @@ export async function appendDeviceRecord(record: DeviceRecord): Promise<void> {
     record.rms === null ? '' : record.rms ? 'Yes' : 'No',
     record.battery === null ? '' : record.battery ? 'Yes' : 'No',
     record.routing,
+    record.wholesaleReason ?? '',
   ];
 
   // Ensure both sheets exist (creates them with headers if missing)
@@ -65,13 +66,13 @@ export async function appendDeviceRecord(record: DeviceRecord): Promise<void> {
   await Promise.all([
     api.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Intake!A:H',
+      range: 'Intake!A:I',
       valueInputOption: 'RAW',
       requestBody: { values: [row] },
     }),
     api.spreadsheets.values.append({
       spreadsheetId,
-      range: `${record.routing}!A:H`,
+      range: `${record.routing}!A:I`,
       valueInputOption: 'RAW',
       requestBody: { values: [row] },
     }),

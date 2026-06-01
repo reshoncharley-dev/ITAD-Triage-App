@@ -3,6 +3,7 @@
 import { useCallback, useRef, useState } from 'react';
 import EntryStep from './EntryStep';
 import QuestionStep from './QuestionStep';
+import WholesaleReasonStep from './WholesaleReasonStep';
 import ResultCard from './ResultCard';
 import SessionLog from './SessionLog';
 import type { DeviceRecord, IntakeStep, RoutingDestination } from '@/types';
@@ -45,14 +46,16 @@ const STEP_LABELS: Record<IntakeStep, string> = {
   backmarket: 'Back Market',
   rms: 'RMS Check',
   battery: 'Battery',
+  'wholesale-reason': 'Wholesale Reason',
   result: 'Result',
 };
 
-const STEPS: IntakeStep[] = ['entry', 'diag', 'backmarket', 'rms', 'battery', 'result'];
+const PROGRESS_STEPS: IntakeStep[] = ['entry', 'diag', 'backmarket', 'rms', 'battery'];
 
 export default function IntakeFlow() {
   const [step, setStep] = useState<IntakeStep>('entry');
   const [intake, setIntake] = useState<IntakeState>(EMPTY_STATE);
+  const [pendingState, setPendingState] = useState<IntakeState | null>(null);
   const [sessionLog, setSessionLog] = useState<DeviceRecord[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -66,13 +69,15 @@ export default function IntakeFlow() {
   const handleDiag = useCallback((answer: boolean) => {
     const next = { ...intake, diag: answer };
     setIntake(next);
-    if (!answer) finalize(next); else setStep('backmarket');
+    if (!answer) { setPendingState(next); setStep('wholesale-reason'); }
+    else setStep('backmarket');
   }, [intake]);
 
   const handleBackMarket = useCallback((answer: boolean) => {
     const next = { ...intake, backMarket: answer };
     setIntake(next);
-    if (!answer) finalize(next); else setStep('rms');
+    if (!answer) { setPendingState(next); setStep('wholesale-reason'); }
+    else setStep('rms');
   }, [intake]);
 
   const handleRms = useCallback((answer: boolean) => {
@@ -87,7 +92,11 @@ export default function IntakeFlow() {
     finalize(next);
   }, [intake]);
 
-  function finalize(state: IntakeState) {
+  const handleWholesaleReason = useCallback((reason: string) => {
+    if (pendingState) finalize(pendingState, reason);
+  }, [pendingState]);
+
+  function finalize(state: IntakeState, wholesaleReason?: string) {
     const routing = resolveRouting(state);
     const record: DeviceRecord = {
       uuid: state.uuid,
@@ -97,6 +106,7 @@ export default function IntakeFlow() {
       rms: state.rms,
       battery: state.battery,
       routing,
+      wholesaleReason,
       timestamp: new Date().toISOString(),
     };
 
@@ -119,29 +129,25 @@ export default function IntakeFlow() {
 
   function handleNext() {
     setIntake(EMPTY_STATE);
+    setPendingState(null);
     currentRecord.current = null;
     setSyncError(null);
     setStep('entry');
   }
 
-  const currentIndex = STEPS.indexOf(step);
-  const progressSteps = STEPS.slice(0, -1); // exclude 'result' from bar
+  const currentIndex = PROGRESS_STEPS.indexOf(step as IntakeStep);
 
   return (
     <div className="mx-auto max-w-lg px-4 py-6">
-      {/* Card */}
       <div className="bg-[var(--card)] rounded-2xl border border-[var(--border)] shadow-md overflow-hidden">
-        {/* Top accent */}
         <div className="h-1 bg-gradient-to-r from-[#f2555a] via-[#f2555a]/70 to-[#f2555a]/20" />
 
-        {/* Card header */}
         <div className="px-5 py-3.5 border-b border-[var(--border)] bg-gradient-to-r from-[var(--background)] to-white flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-widest text-[var(--muted)]">
             {STEP_LABELS[step]}
           </p>
-          {/* Progress dots */}
           <div className="flex items-center gap-1.5">
-            {progressSteps.map((s, i) => (
+            {PROGRESS_STEPS.map((s, i) => (
               <div
                 key={s}
                 className={`h-1.5 rounded-full transition-all ${
@@ -156,13 +162,13 @@ export default function IntakeFlow() {
           </div>
         </div>
 
-        {/* Card body */}
         <div className="p-5">
           {step === 'entry' && <EntryStep onSubmit={handleEntry} />}
           {step === 'diag' && <QuestionStep question={QUESTIONS.diag} onAnswer={handleDiag} />}
           {step === 'backmarket' && <QuestionStep question={QUESTIONS.backmarket} onAnswer={handleBackMarket} />}
           {step === 'rms' && <QuestionStep question={QUESTIONS.rms} onAnswer={handleRms} />}
           {step === 'battery' && <QuestionStep question={QUESTIONS.battery} onAnswer={handleBattery} />}
+          {step === 'wholesale-reason' && <WholesaleReasonStep onSubmit={handleWholesaleReason} />}
           {step === 'result' && currentRecord.current && (
             <ResultCard
               record={currentRecord.current}
