@@ -1,7 +1,7 @@
 import { google, sheets_v4 } from 'googleapis';
 import type { DeviceRecord, RoutingDestination } from '@/types';
 
-const HEADERS = ['Timestamp', 'UUID', 'Serial', 'Bricked', 'Diag', 'Back Market', 'RMS', 'Battery', 'Routing', 'Wholesale Reason', 'BM Grade'];
+const HEADERS = ['Timestamp', 'UUID', 'Serial', 'Is the device bricked?', 'Did it pass diagnostics?', 'Did it pass RMS check?', 'Is it Back Market resalable?', 'Is the battery good?', 'Routing', 'Wholesale Reason', 'BM Grade'];
 const UUID_COL = 1; // column B, 0-indexed
 const ALL_ROUTING_SHEETS: RoutingDestination[] = [
   'Wholesale',
