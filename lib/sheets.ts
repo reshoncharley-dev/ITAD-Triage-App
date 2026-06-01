@@ -2,7 +2,7 @@ import { google, sheets_v4 } from 'googleapis';
 import type { DeviceRecord } from '@/types';
 
 const HEADERS = ['Timestamp', 'UUID', 'Serial', 'Bricked', 'Diag', 'Back Market', 'RMS', 'Battery', 'Routing', 'Wholesale Reason'];
-const UUID_COL = 1; // 0-indexed — UUID is column B
+const UUID_COL = 1; // column B, 0-indexed
 
 function getAuth() {
   return new google.auth.GoogleAuth({
@@ -20,16 +20,14 @@ async function ensureSheet(
   api: sheets_v4.Sheets,
   spreadsheetId: string,
   sheetName: string
-): Promise<number | null> {
+): Promise<void> {
   const { data } = await api.spreadsheets.get({ spreadsheetId });
-  const sheet = data.sheets?.find((s) => s.properties?.title === sheetName);
+  const exists = data.sheets?.some((s) => s.properties?.title === sheetName);
 
-  if (!sheet) {
+  if (!exists) {
     await api.spreadsheets.batchUpdate({
       spreadsheetId,
-      requestBody: {
-        requests: [{ addSheet: { properties: { title: sheetName } } }],
-      },
+      requestBody: { requests: [{ addSheet: { properties: { title: sheetName } } }] },
     });
     await api.spreadsheets.values.update({
       spreadsheetId,
@@ -37,28 +35,20 @@ async function ensureSheet(
       valueInputOption: 'RAW',
       requestBody: { values: [HEADERS] },
     });
-    return null; // brand new sheet — no existing UUID to find
+    return;
   }
 
-  // Sheet exists — check if row 1 has headers; if not, add them
-  const headerCheck = await api.spreadsheets.values.get({
+  // Sheet exists — verify row 1 is exactly our header
+  const { data: rowData } = await api.spreadsheets.values.get({
     spreadsheetId,
     range: `${sheetName}!A1:J1`,
   });
-  const firstRow = headerCheck.data.values?.[0];
-  if (!firstRow || firstRow[0] !== 'Timestamp') {
-    // Insert a header row at position 1
-    await api.spreadsheets.batchUpdate({
-      spreadsheetId,
-      requestBody: {
-        requests: [{
-          insertDimension: {
-            range: { sheetId: sheet.properties!.sheetId, dimension: 'ROWS', startIndex: 0, endIndex: 1 },
-            inheritFromBefore: false,
-          },
-        }],
-      },
-    });
+  const row1 = rowData.values?.[0] ?? [];
+  const headersOk = HEADERS.every((h, i) => row1[i] === h);
+
+  if (!headersOk) {
+    // Clear the entire first row then write correct headers
+    await api.spreadsheets.values.clear({ spreadsheetId, range: `${sheetName}!1:1` });
     await api.spreadsheets.values.update({
       spreadsheetId,
       range: `${sheetName}!A1`,
@@ -66,24 +56,21 @@ async function ensureSheet(
       requestBody: { values: [HEADERS] },
     });
   }
-
-  return sheet.properties?.sheetId ?? null;
 }
 
-// Returns the 1-based row number of an existing UUID, or null if not found
-async function findExistingRow(
+async function findUUIDRow(
   api: sheets_v4.Sheets,
   spreadsheetId: string,
   sheetName: string,
   uuid: string
 ): Promise<number | null> {
-  const res = await api.spreadsheets.values.get({
+  const { data } = await api.spreadsheets.values.get({
     spreadsheetId,
-    range: `${sheetName}!A:J`,
+    range: `${sheetName}!B:B`, // scan UUID column only
   });
-  const rows = res.data.values ?? [];
-  for (let i = 1; i < rows.length; i++) { // skip header row (index 0)
-    if (rows[i][UUID_COL] === uuid) return i + 1; // 1-based
+  const col = data.values ?? [];
+  for (let i = 1; i < col.length; i++) { // row 0 is header
+    if (col[i]?.[0] === uuid) return i + 1; // 1-based row number
   }
   return null;
 }
@@ -95,10 +82,9 @@ async function upsertRow(
   uuid: string,
   row: string[]
 ): Promise<void> {
-  const existingRow = await findExistingRow(api, spreadsheetId, sheetName, uuid);
+  const existingRow = await findUUIDRow(api, spreadsheetId, sheetName, uuid);
 
   if (existingRow !== null) {
-    // Update in place
     await api.spreadsheets.values.update({
       spreadsheetId,
       range: `${sheetName}!A${existingRow}:J${existingRow}`,
@@ -106,7 +92,6 @@ async function upsertRow(
       requestBody: { values: [row] },
     });
   } else {
-    // Append new row
     await api.spreadsheets.values.append({
       spreadsheetId,
       range: `${sheetName}!A:J`,
@@ -134,15 +119,9 @@ export async function appendDeviceRecord(record: DeviceRecord): Promise<void> {
     record.wholesaleReason ?? '',
   ];
 
-  // Ensure both sheets exist and have headers
-  await Promise.all([
-    ensureSheet(api, spreadsheetId, 'Intake'),
-    ensureSheet(api, spreadsheetId, record.routing),
-  ]);
-
-  // Upsert: update existing row if UUID found, otherwise append
-  await Promise.all([
-    upsertRow(api, spreadsheetId, 'Intake', record.uuid, row),
-    upsertRow(api, spreadsheetId, record.routing, record.uuid, row),
-  ]);
+  // Sequential — avoid any race conditions between sheet operations
+  await ensureSheet(api, spreadsheetId, 'Intake');
+  await ensureSheet(api, spreadsheetId, record.routing);
+  await upsertRow(api, spreadsheetId, 'Intake', record.uuid, row);
+  await upsertRow(api, spreadsheetId, record.routing, record.uuid, row);
 }
