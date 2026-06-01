@@ -1,18 +1,48 @@
-import { google } from 'googleapis';
+import { google, sheets_v4 } from 'googleapis';
 import type { DeviceRecord } from '@/types';
 
-export async function appendDeviceRecord(record: DeviceRecord): Promise<void> {
-  const auth = new google.auth.GoogleAuth({
+const HEADERS = ['Timestamp', 'UUID', 'Serial', 'Diag', 'Back Market', 'RMS', 'Battery', 'Routing'];
+
+function getAuth() {
+  return new google.auth.GoogleAuth({
     credentials: {
       client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
       private_key: process.env.GOOGLE_PRIVATE_KEY
-        ?.replace(/^"|"$/g, '')   // strip accidental surrounding quotes
-        ?.replace(/\\n/g, '\n'),  // literal \n → actual newlines
+        ?.replace(/^"|"$/g, '')
+        ?.replace(/\\n/g, '\n'),
     },
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
+}
 
-  const sheets = google.sheets({ version: 'v4', auth });
+async function ensureSheet(
+  api: sheets_v4.Sheets,
+  spreadsheetId: string,
+  sheetName: string
+): Promise<void> {
+  const { data } = await api.spreadsheets.get({ spreadsheetId });
+  const exists = data.sheets?.some((s) => s.properties?.title === sheetName);
+
+  if (!exists) {
+    await api.spreadsheets.batchUpdate({
+      spreadsheetId,
+      requestBody: {
+        requests: [{ addSheet: { properties: { title: sheetName } } }],
+      },
+    });
+    await api.spreadsheets.values.update({
+      spreadsheetId,
+      range: `${sheetName}!A1`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [HEADERS] },
+    });
+  }
+}
+
+export async function appendDeviceRecord(record: DeviceRecord): Promise<void> {
+  const auth = getAuth();
+  const api = google.sheets({ version: 'v4', auth });
+  const spreadsheetId = process.env.GOOGLE_SHEET_ID!;
 
   const row = [
     record.timestamp,
@@ -25,10 +55,25 @@ export async function appendDeviceRecord(record: DeviceRecord): Promise<void> {
     record.routing,
   ];
 
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: process.env.GOOGLE_SHEET_ID,
-    range: 'Sheet1!A:H',
-    valueInputOption: 'RAW',
-    requestBody: { values: [row] },
-  });
+  // Ensure both sheets exist (creates them with headers if missing)
+  await Promise.all([
+    ensureSheet(api, spreadsheetId, 'Intake'),
+    ensureSheet(api, spreadsheetId, record.routing),
+  ]);
+
+  // Append to main Intake log and to the routing-specific sheet
+  await Promise.all([
+    api.spreadsheets.values.append({
+      spreadsheetId,
+      range: 'Intake!A:H',
+      valueInputOption: 'RAW',
+      requestBody: { values: [row] },
+    }),
+    api.spreadsheets.values.append({
+      spreadsheetId,
+      range: `${record.routing}!A:H`,
+      valueInputOption: 'RAW',
+      requestBody: { values: [row] },
+    }),
+  ]);
 }
