@@ -104,7 +104,7 @@ export default function TriageForm({ uuid, serial, onSubmit }: Props) {
         const next: TriageAnswers = { ...prev, [field]: v };
         // diag/rms/backMarket are peers — changing any resets only battery
         if (field === 'bricked') { next.diag = null; next.rms = null; next.backMarket = null; next.battery = null; }
-        else { next.battery = null; }
+        else if (field !== 'battery') { next.battery = null; }
         return next;
       });
   }
