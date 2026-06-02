@@ -38,6 +38,14 @@ export default function RootLayout({
                 <p className="text-white/40 text-xs mt-0.5">Device Intake &amp; Routing</p>
               </div>
             </div>
+            <a
+              href="https://docs.google.com/spreadsheets/d/1LXddVic0lMt3WHsIcxsnXf3ybs8LQQHRg98RnJbUiQw/edit"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white/50 hover:text-white text-xs font-medium transition-colors"
+            >
+              Google Sheet ↗
+            </a>
           </div>
           <div className="h-0.5 bg-gradient-to-r from-[#f2555a] via-[#f2555a]/60 to-transparent" />
         </header>
