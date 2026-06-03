@@ -104,7 +104,6 @@ export default function TriageForm({ uuid, serial, onSubmit }: Props) {
       setAnswers((prev) => {
         const next: TriageAnswers = { ...prev, [field]: v };
         if (field === 'bricked') { next.diag = null; next.rms = null; next.backMarket = null; next.battery = null; }
-        else if (field === 'diag') { next.rms = null; next.backMarket = null; next.battery = null; }
         else if (field !== 'battery') { next.battery = null; }
         return next;
       });
@@ -119,10 +118,9 @@ export default function TriageForm({ uuid, serial, onSubmit }: Props) {
     (!needsGrade  || grade !== null);
 
   // Progressive visibility
-  const showDiag = answers.bricked === false;
-  const showRmsAndBm = showDiag && answers.diag === true;
-  const showBatteryDiagFailed = showDiag && answers.diag === false;
-  const showBatteryGoodPath = showRmsAndBm && answers.backMarket === true && answers.rms === true;
+  const showGroup = answers.bricked === false;
+  const showBatteryDiagFailed = showGroup && answers.diag === false;
+  const showBatteryGoodPath = showGroup && answers.diag === true && answers.backMarket === true && answers.rms === true;
   const showBattery = showBatteryDiagFailed || showBatteryGoodPath;
   const batteryLabel = showBatteryDiagFailed ? 'Is the battery the only thing that failed?' : 'Is the battery good?';
 
@@ -156,15 +154,11 @@ export default function TriageForm({ uuid, serial, onSubmit }: Props) {
         <div className="py-3">
           <AnswerRow label="Is the device bricked?" value={answers.bricked} onChange={answer('bricked')} />
         </div>
-        {showDiag && (
+        {showGroup && (
           <div className="py-3 flex flex-col gap-3">
             <AnswerRow label="Did it pass diagnostics?" value={answers.diag} onChange={answer('diag')} />
-            {showRmsAndBm && (
-              <>
-                <AnswerRow label="Did it pass RMS check?" value={answers.rms} onChange={answer('rms')} />
-                <AnswerRow label="Is it Back Market resalable?" value={answers.backMarket} onChange={answer('backMarket')} />
-              </>
-            )}
+            <AnswerRow label="Did it pass RMS check?" value={answers.rms} onChange={answer('rms')} />
+            <AnswerRow label="Is it Back Market resalable?" value={answers.backMarket} onChange={answer('backMarket')} />
           </div>
         )}
         {showBattery && (
