@@ -15,7 +15,7 @@ function resolveRouting(a: TriageAnswers): RoutingDestination {
     if (!a.battery) return 'Wholesale';
     return a.rms ? 'Battery Replacement' : 'RMS Quarantine';
   }
-  if (!a.backMarket) return 'Wholesale';
+  if (!a.backMarket && !a.ebay) return 'Wholesale';
   if (!a.rms) return 'RMS Quarantine';
   if (!a.battery) return 'Battery Replacement';
   return 'Internal Resale';

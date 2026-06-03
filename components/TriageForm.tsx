@@ -55,10 +55,10 @@ function resolveRouting(a: TriageAnswers): string | null {
   if (a.bricked === false && a.diag === false && a.battery === false) return 'Wholesale';
   if (a.bricked === false && a.diag === false && a.battery === true && a.rms === false) return 'RMS Quarantine';
   if (a.bricked === false && a.diag === false && a.battery === true && a.rms === true) return 'Battery Replacement';
-  if (a.bricked === false && a.diag === true && a.backMarket === false) return 'Wholesale';
-  if (a.bricked === false && a.diag === true && a.backMarket === true && a.rms === false) return 'RMS Quarantine';
-  if (a.bricked === false && a.diag === true && a.backMarket === true && a.rms === true && a.battery === false) return 'Battery Replacement';
-  if (a.bricked === false && a.diag === true && a.backMarket === true && a.rms === true && a.battery === true) return 'Internal Resale';
+  if (a.bricked === false && a.diag === true && a.backMarket === false && a.ebay !== true) return 'Wholesale';
+  if (a.bricked === false && a.diag === true && (a.backMarket === true || a.ebay === true) && a.rms === false) return 'RMS Quarantine';
+  if (a.bricked === false && a.diag === true && (a.backMarket === true || a.ebay === true) && a.rms === true && a.battery === false) return 'Battery Replacement';
+  if (a.bricked === false && a.diag === true && (a.backMarket === true || a.ebay === true) && a.rms === true && a.battery === true) return 'Internal Resale';
   return null;
 }
 
