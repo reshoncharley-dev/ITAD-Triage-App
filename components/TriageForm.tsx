@@ -121,8 +121,7 @@ export default function TriageForm({ uuid, serial, onSubmit }: Props) {
   // Progressive visibility
   const showGroup = answers.bricked === false;
   const showBatteryDiagFailed = showGroup && answers.diag === false;
-  const showBatteryGoodPath = showGroup && answers.diag === true && answers.backMarket === true && answers.rms === true;
-  const showBattery = showBatteryDiagFailed || showBatteryGoodPath;
+  const showBattery = showGroup;
   const batteryLabel = showBatteryDiagFailed ? 'Is the battery the only thing that failed?' : 'Is the battery good?';
 
   function handleSubmit(e: React.FormEvent) {
