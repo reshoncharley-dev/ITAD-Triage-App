@@ -48,6 +48,7 @@ export default function IntakeFlow() {
       bricked: answers.bricked,
       diag: answers.diag,
       backMarket: answers.backMarket,
+      ebay: answers.ebay,
       rms: answers.rms,
       battery: answers.battery,
       routing,
