@@ -22,10 +22,6 @@ const ROUTING_PREVIEW: Record<string, { bg: string; border: string; text: string
     bg: 'bg-[var(--success-light)]', border: 'border-[var(--success)]/20',
     text: 'text-[var(--success)]', label: 'INTERNAL RESALE',
   },
-  'eBay Resale': {
-    bg: 'bg-blue-50', border: 'border-blue-200/60',
-    text: 'text-blue-600', label: 'EBAY RESALE',
-  },
 };
 
 function RoutingPreview({ routing }: { routing: string }) {
@@ -59,8 +55,7 @@ function resolveRouting(a: TriageAnswers): string | null {
   if (a.bricked === false && a.diag === false && a.battery === false) return 'Wholesale';
   if (a.bricked === false && a.diag === false && a.battery === true && a.rms === false) return 'RMS Quarantine';
   if (a.bricked === false && a.diag === false && a.battery === true && a.rms === true) return 'Battery Replacement';
-  if (a.bricked === false && a.diag === true && a.backMarket === false && a.ebay === true) return 'eBay Resale';
-  if (a.bricked === false && a.diag === true && a.backMarket === false && a.ebay === false) return 'Wholesale';
+  if (a.bricked === false && a.diag === true && a.backMarket === false) return 'Wholesale';
   if (a.bricked === false && a.diag === true && a.backMarket === true && a.rms === false) return 'RMS Quarantine';
   if (a.bricked === false && a.diag === true && a.backMarket === true && a.rms === true && a.battery === false) return 'Battery Replacement';
   if (a.bricked === false && a.diag === true && a.backMarket === true && a.rms === true && a.battery === true) return 'Internal Resale';
@@ -122,6 +117,7 @@ export default function TriageForm({ uuid, serial, onSubmit }: Props) {
   const needsGrade  = routing === 'Internal Resale';
   const canSubmit =
     routing !== null &&
+    (!showEbay || answers.ebay !== null) &&
     (!needsReason || wholesaleReason.trim().length > 0) &&
     (!needsGrade  || grade !== null);
 

@@ -34,13 +34,6 @@ const ROUTING_CONFIG: Record<
     accent: 'from-[#16a34a] to-[#15803d]',
     label: 'INTERNAL RESALE',
   },
-  'eBay Resale': {
-    bg: 'bg-blue-50',
-    border: 'border-blue-200/60',
-    text: 'text-blue-600',
-    accent: 'from-blue-500 to-blue-600',
-    label: 'EBAY RESALE',
-  },
 };
 
 interface Props {

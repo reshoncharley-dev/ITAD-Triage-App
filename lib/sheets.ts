@@ -8,7 +8,6 @@ const ALL_ROUTING_SHEETS: RoutingDestination[] = [
   'RMS Quarantine',
   'Battery Replacement',
   'Internal Resale',
-  'eBay Resale',
 ];
 
 function getAuth() {
@@ -208,5 +207,26 @@ export async function appendDeviceRecord(record: DeviceRecord): Promise<void> {
       valueInputOption: 'RAW',
       requestBody: { values: [row] },
     });
+  }
+
+  // Also track eBay-eligible devices in a dedicated sheet
+  if (record.ebay === true) {
+    await ensureSheet(api, spreadsheetId, 'eBay Resale');
+    const ebayRow = await findUUIDRow(api, spreadsheetId, 'eBay Resale', record.uuid);
+    if (ebayRow !== null) {
+      await api.spreadsheets.values.update({
+        spreadsheetId,
+        range: `eBay Resale!A${ebayRow}:L${ebayRow}`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [row] },
+      });
+    } else {
+      await api.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'eBay Resale!A:L',
+        valueInputOption: 'RAW',
+        requestBody: { values: [row] },
+      });
+    }
   }
 }

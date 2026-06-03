@@ -2,8 +2,7 @@ export type RoutingDestination =
   | 'Wholesale'
   | 'RMS Quarantine'
   | 'Battery Replacement'
-  | 'Internal Resale'
-  | 'eBay Resale';
+  | 'Internal Resale';
 
 export type IntakeStep =
   | 'entry'
