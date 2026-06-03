@@ -7,6 +7,7 @@ const BADGE: Record<RoutingDestination, string> = {
   'RMS Quarantine': 'bg-[var(--warning-light)] text-[var(--warning)] border border-[var(--warning)]/15',
   'Battery Replacement': 'bg-amber-50 text-amber-600 border border-amber-200/60',
   'Internal Resale': 'bg-[var(--success-light)] text-[var(--success)] border border-[var(--success)]/15',
+  'eBay Resale': 'bg-blue-50 text-blue-600 border border-blue-200/60',
 };
 
 interface Props {
