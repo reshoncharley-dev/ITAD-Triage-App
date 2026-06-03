@@ -1,13 +1,14 @@
 import { google, sheets_v4 } from 'googleapis';
 import type { DeviceRecord, RoutingDestination } from '@/types';
 
-const HEADERS = ['Timestamp', 'UUID', 'Serial', 'Is the device bricked?', 'Did it pass diagnostics?', 'Did it pass RMS check?', 'Is it Back Market resalable?', 'Is the battery good?', 'Routing', 'Wholesale Reason', 'BM Grade'];
+const HEADERS = ['Timestamp', 'UUID', 'Serial', 'Is the device bricked?', 'Did it pass diagnostics?', 'Did it pass RMS check?', 'Is it Back Market resalable?', 'Is it eBay sellable?', 'Is the battery good?', 'Routing', 'Wholesale Reason', 'BM Grade'];
 const UUID_COL = 1; // column B, 0-indexed
 const ALL_ROUTING_SHEETS: RoutingDestination[] = [
   'Wholesale',
   'RMS Quarantine',
   'Battery Replacement',
   'Internal Resale',
+  'eBay Resale',
 ];
 
 function getAuth() {
@@ -47,7 +48,7 @@ async function ensureSheet(
   // Sheet exists — fix headers if wrong
   const { data: rowData } = await api.spreadsheets.values.get({
     spreadsheetId,
-    range: `${sheetName}!A1:K1`,
+    range: `${sheetName}!A1:L1`,
   });
   const row1 = rowData.values?.[0] ?? [];
   const headersOk = HEADERS.every((h, i) => row1[i] === h);
@@ -138,14 +139,14 @@ async function upsertIntake(
   if (existingRow !== null) {
     await api.spreadsheets.values.update({
       spreadsheetId,
-      range: `Intake!A${existingRow}:K${existingRow}`,
+      range: `Intake!A${existingRow}:L${existingRow}`,
       valueInputOption: 'RAW',
       requestBody: { values: [row] },
     });
   } else {
     await api.spreadsheets.values.append({
       spreadsheetId,
-      range: 'Intake!A:K',
+      range: 'Intake!A:L',
       valueInputOption: 'RAW',
       requestBody: { values: [row] },
     });
@@ -165,6 +166,7 @@ export async function appendDeviceRecord(record: DeviceRecord): Promise<void> {
     record.diag === null ? '' : record.diag ? 'Yes' : 'No',
     record.rms === null ? '' : record.rms ? 'Yes' : 'No',
     record.backMarket === null ? '' : record.backMarket ? 'Yes' : 'No',
+    record.ebay === null ? '' : record.ebay ? 'Yes' : 'No',
     record.battery === null ? '' : record.battery ? 'Yes' : 'No',
     record.routing,
     record.wholesaleReason ?? '',
@@ -185,7 +187,7 @@ export async function appendDeviceRecord(record: DeviceRecord): Promise<void> {
     // New device — append to routing sheet
     await api.spreadsheets.values.append({
       spreadsheetId,
-      range: `${record.routing}!A:K`,
+      range: `${record.routing}!A:L`,
       valueInputOption: 'RAW',
       requestBody: { values: [row] },
     });
@@ -193,7 +195,7 @@ export async function appendDeviceRecord(record: DeviceRecord): Promise<void> {
     // Same routing — update in place
     await api.spreadsheets.values.update({
       spreadsheetId,
-      range: `${record.routing}!A${current.rowNumber}:J${current.rowNumber}`,
+      range: `${record.routing}!A${current.rowNumber}:L${current.rowNumber}`,
       valueInputOption: 'RAW',
       requestBody: { values: [row] },
     });
@@ -202,7 +204,7 @@ export async function appendDeviceRecord(record: DeviceRecord): Promise<void> {
     await deleteRow(api, spreadsheetId, current.sheetId, current.rowNumber);
     await api.spreadsheets.values.append({
       spreadsheetId,
-      range: `${record.routing}!A:K`,
+      range: `${record.routing}!A:L`,
       valueInputOption: 'RAW',
       requestBody: { values: [row] },
     });

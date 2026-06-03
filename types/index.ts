@@ -2,7 +2,8 @@ export type RoutingDestination =
   | 'Wholesale'
   | 'RMS Quarantine'
   | 'Battery Replacement'
-  | 'Internal Resale';
+  | 'Internal Resale'
+  | 'eBay Resale';
 
 export type IntakeStep =
   | 'entry'
@@ -22,6 +23,7 @@ export interface DeviceRecord {
   bricked: boolean | null;
   diag: boolean | null;
   backMarket: boolean | null;
+  ebay: boolean | null;
   rms: boolean | null;
   battery: boolean | null;
   routing: RoutingDestination;

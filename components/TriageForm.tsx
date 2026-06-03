@@ -22,6 +22,10 @@ const ROUTING_PREVIEW: Record<string, { bg: string; border: string; text: string
     bg: 'bg-[var(--success-light)]', border: 'border-[var(--success)]/20',
     text: 'text-[var(--success)]', label: 'INTERNAL RESALE',
   },
+  'eBay Resale': {
+    bg: 'bg-blue-50', border: 'border-blue-200/60',
+    text: 'text-blue-600', label: 'EBAY RESALE',
+  },
 };
 
 function RoutingPreview({ routing }: { routing: string }) {
@@ -39,12 +43,13 @@ export interface TriageAnswers {
   bricked: boolean | null;
   diag: boolean | null;
   backMarket: boolean | null;
+  ebay: boolean | null;
   rms: boolean | null;
   battery: boolean | null;
 }
 
 const EMPTY: TriageAnswers = {
-  bricked: null, diag: null, backMarket: null, rms: null, battery: null,
+  bricked: null, diag: null, backMarket: null, ebay: null, rms: null, battery: null,
 };
 
 // Flow: Bricked → (Diag + RMS + Back Market together) → Battery
@@ -54,7 +59,8 @@ function resolveRouting(a: TriageAnswers): string | null {
   if (a.bricked === false && a.diag === false && a.battery === false) return 'Wholesale';
   if (a.bricked === false && a.diag === false && a.battery === true && a.rms === false) return 'RMS Quarantine';
   if (a.bricked === false && a.diag === false && a.battery === true && a.rms === true) return 'Battery Replacement';
-  if (a.bricked === false && a.diag === true && a.backMarket === false) return 'Wholesale';
+  if (a.bricked === false && a.diag === true && a.backMarket === false && a.ebay === true) return 'eBay Resale';
+  if (a.bricked === false && a.diag === true && a.backMarket === false && a.ebay === false) return 'Wholesale';
   if (a.bricked === false && a.diag === true && a.backMarket === true && a.rms === false) return 'RMS Quarantine';
   if (a.bricked === false && a.diag === true && a.backMarket === true && a.rms === true && a.battery === false) return 'Battery Replacement';
   if (a.bricked === false && a.diag === true && a.backMarket === true && a.rms === true && a.battery === true) return 'Internal Resale';
@@ -104,8 +110,9 @@ export default function TriageForm({ uuid, serial, onSubmit }: Props) {
     return (v: boolean) =>
       setAnswers((prev) => {
         const next: TriageAnswers = { ...prev, [field]: v };
-        if (field === 'bricked') { next.diag = null; next.rms = null; next.backMarket = null; next.battery = null; }
-        else if (field !== 'battery') { next.battery = null; }
+        if (field === 'bricked') { next.diag = null; next.rms = null; next.backMarket = null; next.ebay = null; next.battery = null; }
+        else if (field === 'backMarket') { next.ebay = null; next.battery = null; }
+        else if (field !== 'battery' && field !== 'ebay') { next.battery = null; }
         return next;
       });
   }
@@ -120,6 +127,7 @@ export default function TriageForm({ uuid, serial, onSubmit }: Props) {
 
   // Progressive visibility
   const showGroup = answers.bricked === false;
+  const showEbay = showGroup && answers.backMarket === false;
   const showBatteryDiagFailed = showGroup && answers.diag === false;
   const showBattery = showGroup;
   const batteryLabel = showBatteryDiagFailed ? 'Is the battery the only thing that failed?' : 'Is the battery good?';
@@ -159,6 +167,9 @@ export default function TriageForm({ uuid, serial, onSubmit }: Props) {
             <AnswerRow label="Did it pass diagnostics?" value={answers.diag} onChange={answer('diag')} />
             <AnswerRow label="Did it pass RMS check?" value={answers.rms} onChange={answer('rms')} />
             <AnswerRow label="Is it Back Market resalable?" value={answers.backMarket} onChange={answer('backMarket')} />
+            {showEbay && (
+              <AnswerRow label="Is it eBay sellable?" value={answers.ebay} onChange={answer('ebay')} />
+            )}
           </div>
         )}
         {showBattery && (
