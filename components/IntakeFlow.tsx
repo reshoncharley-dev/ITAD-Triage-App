@@ -10,8 +10,10 @@ import type { BackMarketGrade, DeviceRecord, RoutingDestination } from '@/types'
 type Step = 'entry' | 'triage' | 'result';
 
 function resolveRouting(a: TriageAnswers): RoutingDestination {
-  if (a.bricked || !a.diag || !a.backMarket) return 'Wholesale';
-  if (!a.rms) return 'RMS Quarantine'; // only reached when backMarket=Yes
+  if (a.bricked) return 'Wholesale';
+  if (!a.diag) return a.battery ? 'Battery Replacement' : 'Wholesale';
+  if (!a.backMarket) return 'Wholesale';
+  if (!a.rms) return 'RMS Quarantine';
   if (!a.battery) return 'Battery Replacement';
   return 'Internal Resale';
 }
