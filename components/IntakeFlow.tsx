@@ -11,7 +11,10 @@ type Step = 'entry' | 'triage' | 'result';
 
 function resolveRouting(a: TriageAnswers): RoutingDestination {
   if (a.bricked) return 'Wholesale';
-  if (!a.diag) return a.battery ? 'Battery Replacement' : 'Wholesale';
+  if (!a.diag) {
+    if (!a.battery) return 'Wholesale';
+    return a.rms ? 'Battery Replacement' : 'RMS Quarantine';
+  }
   if (!a.backMarket) return 'Wholesale';
   if (!a.rms) return 'RMS Quarantine';
   if (!a.battery) return 'Battery Replacement';
