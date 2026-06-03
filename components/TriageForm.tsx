@@ -112,6 +112,10 @@ export default function TriageForm({ uuid, serial, onSubmit }: Props) {
       });
   }
 
+  // Progressive visibility
+  const showGroup = answers.bricked === false;
+  const showEbay = showGroup && answers.backMarket === false;
+
   const routing = resolveRouting(answers);
   const needsReason = routing === 'Wholesale';
   const needsGrade  = routing === 'Internal Resale';
@@ -120,10 +124,6 @@ export default function TriageForm({ uuid, serial, onSubmit }: Props) {
     (!showEbay || answers.ebay !== null) &&
     (!needsReason || wholesaleReason.trim().length > 0) &&
     (!needsGrade  || grade !== null);
-
-  // Progressive visibility
-  const showGroup = answers.bricked === false;
-  const showEbay = showGroup && answers.backMarket === false;
   const showBatteryDiagFailed = showGroup && answers.diag === false;
   const showBattery = showGroup;
   const batteryLabel = showBatteryDiagFailed ? 'Is the battery the only thing that failed?' : 'Is the battery good?';
