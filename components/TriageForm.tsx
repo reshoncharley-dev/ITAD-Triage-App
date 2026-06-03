@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type { BackMarketGrade } from '@/types';
 
-const GRADES: BackMarketGrade[] = ['Mint', 'Very Good', 'Good', 'Fair', 'Stallone'];
+const GRADES: BackMarketGrade[] = ['Mint', 'Very Good', 'Good', 'Fair', 'Stallone', 'eBay'];
 
 const ROUTING_PREVIEW: Record<string, { bg: string; border: string; text: string; label: string }> = {
   Wholesale: {

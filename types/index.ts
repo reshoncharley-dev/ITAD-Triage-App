@@ -14,7 +14,7 @@ export type IntakeStep =
   | 'wholesale-reason'
   | 'result';
 
-export type BackMarketGrade = 'Mint' | 'Very Good' | 'Good' | 'Fair' | 'Stallone';
+export type BackMarketGrade = 'Mint' | 'Very Good' | 'Good' | 'Fair' | 'Stallone' | 'eBay';
 
 export interface DeviceRecord {
   uuid: string;
